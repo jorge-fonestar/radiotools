@@ -335,6 +335,35 @@ body {
     border-top-color: #333;
 }
 
+/* Estilos para sección de bandas fija (no desplegable) */
+.bands-section-fixed {
+    background: #1a1a1a;
+    border-radius: 12px;
+    border: 1px solid #333;
+    margin-bottom: 20px;
+    overflow: visible;
+}
+
+.bands-recommendation {
+    padding: 15px;
+    background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
+    border-bottom: 2px solid #333;
+    font-size: 14px;
+    font-weight: 600;
+    color: #ffd700;
+    text-align: center;
+    line-height: 1.5;
+}
+
+.bands-header-fixed {
+    padding: 15px;
+    border-bottom: 1px solid #333;
+}
+
+.bands-content-fixed {
+    display: block;
+}
+
 .band-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -375,6 +404,82 @@ body {
     height: 8px;
     border-radius: 50%;
     background: var(--band-color);
+}
+
+/* Estilos para bandas detalladas con estrellas */
+.band-item-detailed {
+    background: #252525;
+    border-radius: 6px;
+    padding: 10px 15px;
+    border-left: 3px solid var(--band-color);
+    transition: background 0.2s;
+    position: relative;
+}
+
+.band-item-detailed:hover {
+    background: #2a2a2a;
+}
+
+.band-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.band-stars {
+    display: flex;
+    gap: 1px;
+    align-items: center;
+}
+
+.star {
+    font-size: 12px;
+    opacity: 0.25;
+    filter: grayscale(100%);
+}
+
+.star.filled {
+    opacity: 1;
+    filter: grayscale(0%);
+}
+
+.band-status-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.info-btn {
+    background: transparent;
+    border: none;
+    color: #666;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    padding: 0;
+    margin-left: auto;
+}
+
+.info-btn:hover {
+    color: #4CAF50;
+    transform: scale(1.15);
+}
+
+.band-explanation {
+    display: none;
+    margin-top: 8px;
+    padding: 10px;
+    background: rgba(26, 26, 26, 0.95);
+    border-left: 2px solid var(--band-color);
+    border-radius: 4px;
+    font-size: 11px;
+    color: #aaa;
+    line-height: 1.4;
+}
+
+.band-explanation.show {
+    display: block;
 }
 
 .recommendation {

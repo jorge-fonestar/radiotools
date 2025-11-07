@@ -1,0 +1,206 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+**RadioTools** is a PHP-based web application suite designed for amateur radio operators (ham radio enthusiasts). It provides real-time solar monitoring, HF propagation calculations, and an interactive radio spectrum visualizer. The application is mobile-friendly with a dark theme optimized for readability.
+
+## Technology Stack
+
+- **Backend**: PHP (vanilla, no frameworks)
+- **Frontend**: HTML, CSS, JavaScript (vanilla, no frameworks)
+- **Data Source**: HamQSL Solar XML API (`https://www.hamqsl.com/solarxml.php`)
+- **Deployment**: Standard PHP web server (Apache/Nginx)
+- **Cache**: File-based caching (`solar_cache.json`, 5-minute TTL)
+
+## Project Structure
+
+```
+radiotools/
+├── index.php              # Landing page with feature links
+├── solar.php              # Real-time solar conditions monitor
+├── propagacion.php        # HF propagation calculator
+├── espectro-visual.php    # Interactive radio spectrum visualizer
+├── nav.php                # Shared navigation menu component
+├── styles.css             # Global styles (dark theme)
+└── solar_cache.json       # Auto-generated cache file (not in repo)
+```
+
+## Core Architecture
+
+### Navigation System (`nav.php`)
+
+- Shared hamburger menu component used across all pages
+- Function `renderNavMenu($currentPage)` renders navigation with active state
+- Includes both internal pages and external links (e.g., DIY Radio Google Doc)
+- Click-outside-to-close JavaScript behavior
+
+### Solar Data Pipeline
+
+**Flow**: API → Cache → Parse → Display
+
+1. **Fetch**: `getSolarData()` fetches XML from HamQSL API
+2. **Cache**: 5-minute file cache to avoid API overload
+3. **Parse**: `xmlToArray()` converts XML to PHP associative array
+4. **Evaluate**: Helper functions (`evaluateSFI()`, `evaluateKIndex()`, etc.) categorize conditions
+5. **Display**: Collapsible cards with traffic-light color coding (green/yellow/red)
+
+### Key Data Points
+
+- **SFI** (Solar Flux Index): 2800 MHz solar radiation, indicates ionization level
+- **K-Index**: 3-hour geomagnetic activity (0-9 scale, lower is better)
+- **A-Index**: 24-hour geomagnetic activity average
+- **Sunspots**: Number of visible sunspots (higher = better HF propagation)
+- **X-Ray**: Solar flare intensity (A/B/C/M/X classes)
+- **Solar Wind**: Particle velocity in km/s
+- **Band Conditions**: Per-band propagation quality (80m-40m, 30m-20m, 17m-15m, 12m-10m)
+- **VHF Conditions**: Aurora, E-Skip phenomena by region
+
+### Propagation Calculator (`propagacion.php`)
+
+**Purpose**: Predict HF propagation quality from user's QTH (location) to world regions.
+
+**Core Algorithm** (`PropagationCalculator` class):
+- Calculates **MUF** (Maximum Usable Frequency) based on SFI and distance
+- Calculates **LUF** (Lowest Usable Frequency) based on D-layer absorption
+- Solar zenith angle calculations for day/night path determination
+- Haversine distance formula for great-circle paths
+- Heuristic probability model (0-100%) per band per region
+
+**Input**:
+- QTH coordinates (latitude/longitude)
+- Selected HF bands (160m to 10m)
+
+**Output**:
+- Per-band region rankings with probability bars
+- MUF/LUF ranges, distance, solar zenith angle
+- Color-coded indicators (green/yellow/orange/red)
+
+### Spectrum Visualizer (`espectro-visual.php`)
+
+**Purpose**: Educational interactive display of radio spectrum (3 Hz to light and beyond).
+
+**Features**:
+- Visual spectrum bar with color-coded frequency ranges
+- Hover tooltips with detailed frequency allocation info
+- Band cards with use-case tags (FM, WiFi, GPS, satellites, etc.)
+- Spanish-language descriptions tailored for ham radio operators
+
+## UI/UX Patterns
+
+### Collapsible Sections
+
+All major information blocks use a consistent expand/collapse pattern:
+- Click anywhere on section header to toggle
+- Arrow rotates 180° when expanded
+- CSS `max-height` transition for smooth animation
+- Class `.expanded` triggers visibility
+
+### Color Coding
+
+Consistent traffic-light system:
+- **Green** (#4CAF50): Good/optimal conditions
+- **Yellow** (#FFC107): Fair/moderate conditions
+- **Red** (#F44336): Poor/bad conditions
+- **Gray** (#9E9E9E): Unknown/unavailable data
+
+### Mobile-First Responsive
+
+- Base container: 400px max-width (mobile-optimized)
+- Wide container: 1000px for results pages
+- Touch-friendly tap targets (min 45px height)
+- No pinch-zoom disabled for accessibility
+
+## Development Notes
+
+### Working with Solar Data
+
+When modifying `solar.php`:
+- Always handle XML parse errors gracefully
+- Respect cache timing to avoid API rate limits
+- Band condition keys follow format: `'80m-40m'`, `'30m-20m'`, etc.
+- VHF keys combine phenomenon + location: `'E-Skip_europe'`, `'vhf-aurora_northern_hemi'`
+
+### Modifying Propagation Algorithm
+
+The `PropagationCalculator` class in `propagacion.php` uses simplified models:
+- **Not VOACAP-level accuracy** - this is a heuristic tool
+- Day/night transitions use solar zenith angle (90° = horizon)
+- Gray line (85-95° zenith) gets propagation bonus
+- K-Index > 4 penalizes probability
+- Polar paths (>60° lat) heavily penalized during high K-Index
+
+### Adding New Pages
+
+1. Create new `.php` file in root
+2. Add `require_once 'nav.php';` at top
+3. Call `renderNavMenu('yourpage.php')` in body
+4. Update `$pages` array in `nav.php` to add to menu
+5. Use existing `styles.css` classes for consistency
+
+### Styling Conventions
+
+- All colors defined inline via CSS variables: `--indicator-color`, `--band-color`
+- Dark theme base: `#0a0a0a` background, `#1a1a1a` cards, `#333` borders
+- Font stack: System fonts for performance
+- Icons: Emoji-based (no icon fonts or SVGs)
+
+## Common Modifications
+
+### Change Cache Duration
+
+Edit `$cache_time` variable in `solar.php` or `propagacion.php`:
+```php
+$cache_time = 300; // 5 minutes in seconds
+```
+
+### Add New Solar Indicators
+
+1. Parse new field in `xmlToArray()` function
+2. Create evaluation function (e.g., `evaluateNewMetric()`)
+3. Add indicator card in main HTML with consistent structure
+4. Use existing `.indicator-card` CSS classes
+
+### Customize QTH Presets
+
+Edit location buttons in `propagacion.php` around line 513:
+```php
+<button type="button" class="location-btn" onclick="setLocation(lat, lon, 'Name')">
+    📍 Name
+</button>
+```
+
+## Language
+
+All user-facing text is in **Spanish** (es-ES). Technical terms use Spanish ham radio conventions:
+- "Propagación" (propagation)
+- "Radioaficionado" (ham radio operator)
+- "Manchas solares" (sunspots)
+- "Viento solar" (solar wind)
+
+## External Dependencies
+
+**None**. This is a zero-dependency vanilla PHP/JS application. Only requires:
+- PHP 7.0+ with cURL extension
+- Write permissions for cache file
+- Internet access to fetch solar data
+
+## Testing
+
+No automated test suite. Manual testing checklist:
+- Verify navigation works across all pages
+- Check cache file creation/updates
+- Test collapsible sections expand/collapse
+- Validate propagation calculator with different QTH coordinates
+- Ensure mobile responsive on 320px+ viewports
+- Test with API unavailable (cache fallback)
+
+## Deployment
+
+Standard PHP deployment:
+1. Upload all `.php` and `.css` files to web root
+2. Ensure PHP has write permissions for cache file
+3. Verify cURL is enabled in PHP
+4. No database or composer dependencies needed
+5. Works on shared hosting (no special requirements)

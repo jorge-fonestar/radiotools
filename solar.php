@@ -131,16 +131,102 @@ function translateVHFCondition($value) {
 // Función para obtener color de condiciones VHF
 function getVHFConditionColor($value) {
     switch(strtolower($value)) {
-        case 'band open': 
-        case 'band enhanced': 
+        case 'band open':
+        case 'band enhanced':
             return '#4CAF50'; // Verde
-        case 'band possible': 
+        case 'band possible':
             return '#FFC107'; // Amarillo
-        case 'band closed': 
+        case 'band closed':
             return '#F44336'; // Rojo
-        default: 
+        default:
             return '#9E9E9E'; // Gris
     }
+}
+
+// Función para analizar bandas con estrellas y explicación
+function analyzeBandCondition($bandName, $condition, $sfi, $k, $a) {
+    $stars = 0;
+    $explanation = '';
+
+    // Determinar estrellas base según condición
+    switch(strtolower($condition)) {
+        case 'good':
+            $stars = 4;
+            break;
+        case 'fair':
+            $stars = 3;
+            break;
+        case 'poor':
+            $stars = 2;
+            break;
+        default:
+            $stars = 1;
+    }
+
+    // Ajustar según parámetros solares específicos por banda
+    if ($bandName == '80m - 40m') {
+        // Bandas bajas: mejoran con K/A bajos, menos dependientes de SFI
+        if ($k <= 3 && $a <= 20) {
+            $stars = min(5, $stars + 1);
+            $explanation = "Bandas bajas estables. K/A bajos favorecen propagación nocturna confiable y baja absorción auroral.";
+        } elseif ($k >= 5) {
+            $explanation = "K-Index elevado causa absorción auroral. Rutas polares degradadas, mejor comunicaciones locales-regionales.";
+        } else {
+            $explanation = "Condiciones normales para bandas bajas. 80m óptima de noche, 40m funciona día y noche.";
+        }
+    }
+    elseif ($bandName == '30m - 20m') {
+        // Bandas medias: balance entre SFI y estabilidad geomagnética
+        if ($sfi >= 100 && $k <= 3 && $a <= 20) {
+            $stars = min(5, $stars + 1);
+            $explanation = "SFI alto + geomagnética estable = DX excelente. 20m es la banda más versátil para DX mundial diurno.";
+        } elseif ($sfi < 80) {
+            $stars = max(1, $stars - 1);
+            $explanation = "SFI bajo limita MUF. 30m funcionará mejor que 20m. Propagación reducida en bandas altas.";
+        } elseif ($k >= 5) {
+            $stars = max(1, $stars - 1);
+            $explanation = "Actividad geomagnética causa fading errático. 30m más estable que 20m durante perturbaciones.";
+        } else {
+            $explanation = "20m: banda clásica DX diurna. 30m: excelente para modos digitales, menos afectada por ruido.";
+        }
+    }
+    elseif ($bandName == '17m - 15m') {
+        // Bandas medio-altas: muy dependientes de SFI
+        if ($sfi >= 120 && $k <= 3) {
+            $stars = min(5, $stars + 1);
+            $explanation = "SFI excelente abre bandas altas. 15m: DX mundial con señales fuertes. 17m: menos concurrida, ideal DX.";
+        } elseif ($sfi < 90) {
+            $stars = max(1, $stars - 1);
+            $explanation = "SFI insuficiente. MUF demasiado baja para estas bandas. Cerradas o solo skip corto esporádico.";
+        } elseif ($k >= 4) {
+            $explanation = "SFI adecuado pero geomagnética inestable. Fading profundo, señales erráticas. Mejor esperar estabilización.";
+        } else {
+            $explanation = "Condiciones marginales. 15m puede abrir en picos solares. 17m requiere SFI más alto para DX confiable.";
+        }
+    }
+    elseif ($bandName == '12m - 10m') {
+        // Bandas altas: máxima dependencia de SFI y ciclo solar
+        if ($sfi >= 150 && $k <= 2) {
+            $stars = 5;
+            $explanation = "¡Condiciones de ciclo solar máximo! 10m abierta para DX mundial, señales muy fuertes, propagación multi-hop.";
+        } elseif ($sfi >= 120 && $k <= 3) {
+            $stars = min(5, $stars + 1);
+            $explanation = "SFI alto permite apertura de 10m. Banda muy sensible pero ofrece DX espectacular cuando abre.";
+        } elseif ($sfi < 100) {
+            $stars = 1;
+            $explanation = "SFI bajo = bandas cerradas. Solo abren con E-skip esporádico o en pico ciclo solar. Probar modos digitales.";
+        } elseif ($k >= 4) {
+            $stars = max(1, $stars - 1);
+            $explanation = "Aunque SFI es aceptable, perturbaciones geomagnéticas cierran estas bandas. Flutter y fading severo.";
+        } else {
+            $explanation = "Bandas marginales. 12m puede tener aperturas breves. 10m muy dependiente de ciclo solar, solo abre con SFI >120.";
+        }
+    }
+
+    return [
+        'stars' => $stars,
+        'explanation' => $explanation
+    ];
 }
 
 // Función para evaluar SFI
@@ -217,21 +303,57 @@ $a_eval = $data['aindex'] !== '--' ? evaluateAIndex(intval($data['aindex'])) : [
 $xray_eval = isset($data['xray']) && $data['xray'] !== '--' ? evaluateXRay($data['xray']) : ['color' => '#666', 'text' => 'N/A', 'icon' => '❓'];
 $wind_eval = isset($data['solarwind']) && $data['solarwind'] !== '--' ? evaluateSolarWind($data['solarwind']) : ['color' => '#666', 'text' => 'N/A', 'icon' => '❓'];
 
-// Calcular recomendación general
+// Calcular recomendación detallada
 $recommendation = '';
 if (!$error) {
     $sfi = intval($data['solarflux']);
     $k = intval($data['kindex']);
     $a = intval($data['aindex']);
-    
-    if ($sfi > 100 && $k < 4 && $a < 20) {
-        $recommendation = '🎯 Excelentes condiciones para DX';
-    } elseif ($sfi > 80 && $k < 5 && $a < 30) {
-        $recommendation = '📡 Buenas condiciones para HF';
-    } elseif ($k > 4 || $a > 30) {
-        $recommendation = '⚠️ Condiciones alteradas - Usar bandas bajas';
-    } else {
-        $recommendation = '📻 Condiciones normales';
+    $sunspots = intval($data['sunspots']);
+
+    // Condiciones excepcionales (ciclo solar en máximo)
+    if ($sfi >= 150 && $k <= 2 && $a <= 10 && $sunspots > 100) {
+        $recommendation = '🌟 Condiciones excepcionales - DX mundial en todas las bandas altas (10m-20m)';
+    }
+    // Condiciones excelentes para DX
+    elseif ($sfi >= 120 && $k <= 3 && $a <= 15) {
+        $recommendation = '🎯 Excelentes condiciones - DX en bandas altas (10m, 15m, 20m) con propagación estable';
+    }
+    // Muy buenas condiciones
+    elseif ($sfi >= 100 && $k <= 3 && $a <= 20) {
+        $recommendation = '📡 Muy buenas condiciones - 20m y 17m óptimas, probar 15m y 12m';
+    }
+    // Buenas condiciones generales
+    elseif ($sfi >= 80 && $k <= 4 && $a <= 25) {
+        $recommendation = '✅ Buenas condiciones - 40m, 30m y 20m recomendadas, bandas altas limitadas';
+    }
+    // Condiciones normales
+    elseif ($sfi >= 70 && $k <= 4 && $a <= 30) {
+        $recommendation = '📻 Condiciones normales - Enfocarse en 40m y 20m, bandas altas cerradas';
+    }
+    // Tormenta geomagnética severa
+    elseif ($k >= 7 || $a >= 100) {
+        $recommendation = '🌪️ Tormenta geomagnética severa - DX muy difícil, solo bandas bajas locales (80m, 160m)';
+    }
+    // Tormenta geomagnética moderada
+    elseif ($k >= 5 || $a >= 50) {
+        $recommendation = '⛈️ Tormenta geomagnética - Propagación degradada, usar 40m y 80m, evitar rutas polares';
+    }
+    // Actividad geomagnética elevada
+    elseif ($k >= 4 || $a >= 30) {
+        $recommendation = '⚠️ Actividad geomagnética elevada - Fading rápido, mejor 40m y 80m';
+    }
+    // SFI muy bajo (mínimo solar)
+    elseif ($sfi < 70) {
+        $recommendation = '🌑 SFI muy bajo - Mínimo solar, solo bandas bajas efectivas (40m, 80m, 160m)';
+    }
+    // SFI bajo
+    elseif ($sfi < 80) {
+        $recommendation = '📉 SFI bajo - Bandas altas cerradas, concentrarse en 40m y 30m';
+    }
+    // Condiciones regulares por defecto
+    else {
+        $recommendation = '🔄 Condiciones regulares - Probar 40m y 20m según hora del día';
     }
 }
 
@@ -267,92 +389,92 @@ if (!$error) {
         </div>
         <?php endif; ?>
 
-        <?php if ($recommendation): ?>
-        <div class="recommendation">
-            <?php echo $recommendation; ?>
-        </div>
-        <?php endif; ?>
-
         <?php if (!$error && isset($data['80m-40m'])): ?>
-        <div class="bands-section" onclick="this.classList.toggle('expanded')">
-            <div class="bands-header">
-                <h2 class="bands-title">📻 Condiciones por Banda (<?php echo (date('H') >= 6 && date('H') < 20) ? 'Día' : 'Noche'; ?>)</h2>
-                <span class="bands-expand-arrow">▼</span>
-            </div>
-            <div class="bands-content">
-                <div class="band-grid" style="padding: 15px;">
-                    <div class="band-item" style="--band-color: <?php echo getConditionColor($data['80m-40m']); ?>">
-                        <div class="band-name">80m - 40m</div>
-                        <div class="band-status"><?php echo translateCondition($data['80m-40m']); ?></div>
-                        <div class="band-indicator"></div>
-                    </div>
-                    <div class="band-item" style="--band-color: <?php echo getConditionColor($data['30m-20m']); ?>">
-                        <div class="band-name">30m - 20m</div>
-                        <div class="band-status"><?php echo translateCondition($data['30m-20m']); ?></div>
-                        <div class="band-indicator"></div>
-                    </div>
-                    <div class="band-item" style="--band-color: <?php echo getConditionColor($data['17m-15m']); ?>">
-                        <div class="band-name">17m - 15m</div>
-                        <div class="band-status"><?php echo translateCondition($data['17m-15m']); ?></div>
-                        <div class="band-indicator"></div>
-                    </div>
-                    <div class="band-item" style="--band-color: <?php echo getConditionColor($data['12m-10m']); ?>">
-                        <div class="band-name">12m - 10m</div>
-                        <div class="band-status"><?php echo translateCondition($data['12m-10m']); ?></div>
-                        <div class="band-indicator"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <?php endif; ?>
+        <?php
+        // Calcular análisis de bandas
+        $sfi = intval($data['solarflux']);
+        $k = intval($data['kindex']);
+        $a = intval($data['aindex']);
 
-        <?php if (!$error && (isset($data['vhf-aurora_northern_hemi']) || isset($data['E-Skip_europe']) || isset($data['E-Skip_north_america']) || isset($data['E-Skip_europe_6m']) || isset($data['E-Skip_europe_4m']))): ?>
-        <div class="bands-section" onclick="this.classList.toggle('expanded')">
-            <div class="bands-header">
-                <h2 class="bands-title">📡 Condiciones VHF/UHF</h2>
-                <span class="bands-expand-arrow">▼</span>
+        $band_80_40 = analyzeBandCondition('80m - 40m', $data['80m-40m'], $sfi, $k, $a);
+        $band_30_20 = analyzeBandCondition('30m - 20m', $data['30m-20m'], $sfi, $k, $a);
+        $band_17_15 = analyzeBandCondition('17m - 15m', $data['17m-15m'], $sfi, $k, $a);
+        $band_12_10 = analyzeBandCondition('12m - 10m', $data['12m-10m'], $sfi, $k, $a);
+        ?>
+        <div class="bands-section-fixed">
+            <?php if ($recommendation): ?>
+            <div class="bands-recommendation">
+                <?php echo $recommendation; ?>
             </div>
-            <div class="bands-content">
+            <?php endif; ?>
+            <div class="bands-header-fixed">
+                <h2 class="bands-title">📻 Condiciones por Banda (<?php echo (date('H') >= 6 && date('H') < 20) ? 'Día' : 'Noche'; ?>)</h2>
+            </div>
+            <div class="bands-content-fixed">
                 <div class="band-grid" style="padding: 15px;">
-                    <?php if (isset($data['vhf-aurora_northern_hemi'])): ?>
-                    <div class="band-item" style="--band-color: <?php echo getVHFConditionColor($data['vhf-aurora_northern_hemi']); ?>">
-                        <div class="band-name">Aurora VHF</div>
-                        <div class="band-status"><?php echo translateVHFCondition($data['vhf-aurora_northern_hemi']); ?></div>
-                        <div class="band-indicator"></div>
+                    <div class="band-item-detailed" style="--band-color: <?php echo getConditionColor($data['80m-40m']); ?>">
+                        <div class="band-header-row">
+                            <div class="band-name">80m - 40m</div>
+                            <div class="band-stars">
+                                <?php for($i = 1; $i <= 5; $i++): ?>
+                                    <span class="star <?php echo $i <= $band_80_40['stars'] ? 'filled' : ''; ?>">⭐</span>
+                                <?php endfor; ?>
+                            </div>
+                        </div>
+                        <div class="band-status-row">
+                            <div class="band-status"><?php echo translateCondition($data['80m-40m']); ?></div>
+                            <button class="info-btn" onclick="event.stopPropagation(); toggleExplanation(this);">ℹ️</button>
+                        </div>
+                        <div class="band-explanation"><?php echo $band_80_40['explanation']; ?></div>
                     </div>
-                    <?php endif; ?>
-                    
-                    <?php if (isset($data['E-Skip_europe'])): ?>
-                    <div class="band-item" style="--band-color: <?php echo getVHFConditionColor($data['E-Skip_europe']); ?>">
-                        <div class="band-name">E-Skip Europa</div>
-                        <div class="band-status"><?php echo translateVHFCondition($data['E-Skip_europe']); ?></div>
-                        <div class="band-indicator"></div>
+
+                    <div class="band-item-detailed" style="--band-color: <?php echo getConditionColor($data['30m-20m']); ?>">
+                        <div class="band-header-row">
+                            <div class="band-name">30m - 20m</div>
+                            <div class="band-stars">
+                                <?php for($i = 1; $i <= 5; $i++): ?>
+                                    <span class="star <?php echo $i <= $band_30_20['stars'] ? 'filled' : ''; ?>">⭐</span>
+                                <?php endfor; ?>
+                            </div>
+                        </div>
+                        <div class="band-status-row">
+                            <div class="band-status"><?php echo translateCondition($data['30m-20m']); ?></div>
+                            <button class="info-btn" onclick="event.stopPropagation(); toggleExplanation(this);">ℹ️</button>
+                        </div>
+                        <div class="band-explanation"><?php echo $band_30_20['explanation']; ?></div>
                     </div>
-                    <?php endif; ?>
-                    
-                    <?php if (isset($data['E-Skip_north_america'])): ?>
-                    <div class="band-item" style="--band-color: <?php echo getVHFConditionColor($data['E-Skip_north_america']); ?>">
-                        <div class="band-name">E-Skip N.América</div>
-                        <div class="band-status"><?php echo translateVHFCondition($data['E-Skip_north_america']); ?></div>
-                        <div class="band-indicator"></div>
+
+                    <div class="band-item-detailed" style="--band-color: <?php echo getConditionColor($data['17m-15m']); ?>">
+                        <div class="band-header-row">
+                            <div class="band-name">17m - 15m</div>
+                            <div class="band-stars">
+                                <?php for($i = 1; $i <= 5; $i++): ?>
+                                    <span class="star <?php echo $i <= $band_17_15['stars'] ? 'filled' : ''; ?>">⭐</span>
+                                <?php endfor; ?>
+                            </div>
+                        </div>
+                        <div class="band-status-row">
+                            <div class="band-status"><?php echo translateCondition($data['17m-15m']); ?></div>
+                            <button class="info-btn" onclick="event.stopPropagation(); toggleExplanation(this);">ℹ️</button>
+                        </div>
+                        <div class="band-explanation"><?php echo $band_17_15['explanation']; ?></div>
                     </div>
-                    <?php endif; ?>
-                    
-                    <?php if (isset($data['E-Skip_europe_6m'])): ?>
-                    <div class="band-item" style="--band-color: <?php echo getVHFConditionColor($data['E-Skip_europe_6m']); ?>">
-                        <div class="band-name">E-Skip 6m Europa</div>
-                        <div class="band-status"><?php echo translateVHFCondition($data['E-Skip_europe_6m']); ?></div>
-                        <div class="band-indicator"></div>
+
+                    <div class="band-item-detailed" style="--band-color: <?php echo getConditionColor($data['12m-10m']); ?>">
+                        <div class="band-header-row">
+                            <div class="band-name">12m - 10m</div>
+                            <div class="band-stars">
+                                <?php for($i = 1; $i <= 5; $i++): ?>
+                                    <span class="star <?php echo $i <= $band_12_10['stars'] ? 'filled' : ''; ?>">⭐</span>
+                                <?php endfor; ?>
+                            </div>
+                        </div>
+                        <div class="band-status-row">
+                            <div class="band-status"><?php echo translateCondition($data['12m-10m']); ?></div>
+                            <button class="info-btn" onclick="event.stopPropagation(); toggleExplanation(this);">ℹ️</button>
+                        </div>
+                        <div class="band-explanation"><?php echo $band_12_10['explanation']; ?></div>
                     </div>
-                    <?php endif; ?>
-                    
-                    <?php if (isset($data['E-Skip_europe_4m'])): ?>
-                    <div class="band-item" style="--band-color: <?php echo getVHFConditionColor($data['E-Skip_europe_4m']); ?>">
-                        <div class="band-name">E-Skip 4m Europa</div>
-                        <div class="band-status"><?php echo translateVHFCondition($data['E-Skip_europe_4m']); ?></div>
-                        <div class="band-indicator"></div>
-                    </div>
-                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -535,6 +657,7 @@ if (!$error) {
             <?php endif; ?>
 
 
+
             
             <div class="disclaimer">
                 ⚠️ <strong>Disclaimer:</strong> Los datos presentados son obtenidos de fuentes externas como HamQSL y NOAA. Aunque se hace todo lo posible por asegurar su precisión, no se garantiza la exactitud ni la actualidad de la información. Los usuarios deben verificar los datos críticos antes de tomar decisiones operativas basadas en ellos. El sitio no se responsabiliza por daños o pérdidas derivadas del uso de esta información.
@@ -550,6 +673,13 @@ if (!$error) {
             setTimeout(function() {
                 location.reload();
             }, 300000);
+
+            // Toggle explicación de bandas
+            function toggleExplanation(btn) {
+                const item = btn.closest('.band-item-detailed');
+                const explanation = item.querySelector('.band-explanation');
+                explanation.classList.toggle('show');
+            }
         </script>
     </div>
 </body>
