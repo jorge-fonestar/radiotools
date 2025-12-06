@@ -200,16 +200,14 @@ require_once 'nav.php';
 <body>
     <div class="container">
         <?php renderNavMenu('espectro-visual.php'); ?>
-        
+
         <div class="header">
-            <h1>🌈 Espectro Radioeléctrico</h1>
             <div class="update-time">
                 Visualizador Interactivo de Frecuencias
             </div>
         </div>
 
         <div class="espectro-container">
-            <h1 class="espectro-title">📡 Espectro Radioeléctrico</h1>
             <p class="subtitle">De 3 Hz a 300 GHz y más allá - Pasa el ratón para más información</p>
             
             <div class="spectrum-bar">

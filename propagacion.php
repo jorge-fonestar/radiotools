@@ -430,9 +430,8 @@ if ($_POST && isset($_POST['calculate'])) {
 <body>
     <div class="container">
         <?php renderNavMenu('propagacion.php'); ?>
-        
+
         <div class="header">
-            <h1>📡 Calculador Propagación HF</h1>
             <div class="update-time">
                 Datos solares: <?php echo $solarData ? $solarData['updated'] : 'No disponibles'; ?>
             </div>

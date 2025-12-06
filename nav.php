@@ -5,10 +5,12 @@ function renderNavMenu($currentPage) {
     $pages = [
         'index.php' => ['🏠 Inicio', 'Página principal del sistema'],
         'solar.php' => ['📡 Monitor Solar', 'Condiciones solares en tiempo real'],
+        'qso.php' => ['📝 Gestor QSO', 'Gestor de contactos y notas de QSO'],
+        'links.php' => ['🔗 Enlaces de Interés', 'Recursos y enlaces útiles'],
         'propagacion.php' => ['📻 Calculador Propagación', 'Predicción de propagación HF'],
-        'espectro-visual.php' => ['🌈 Espectro Radioeléctrico', 'Visualizador de espectro radioeléctrico']
+        'espectro-visual.php' => ['🌈 Espectro Radioeléctrico', 'Visualizador de espectro radioeléctrico'],
     ];
-    
+
     $external_links = [
         'https://docs.google.com/document/d/1r2CloQgovSGbe9PjPuUlWYmzm1d-khQ1XCfvc8nwFkI/edit?usp=sharing' => ['🔧 DIY Radio', 'Proyectos y construcciones DIY']
     ];

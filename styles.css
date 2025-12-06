@@ -11,6 +11,10 @@ body {
     color: #ffffff;
     padding: 10px;
     min-height: 100vh;
+    /* Optimizaciones de rendimiento móvil */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
 }
 
 /* Menú hamburguesa */
@@ -27,8 +31,11 @@ body {
     display: flex;
     align-items: center;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: background 0.2s ease, border-color 0.2s ease;
     min-height: 45px;
+    /* Mejora táctil móvil */
+    -webkit-tap-highlight-color: rgba(76, 175, 80, 0.1);
+    touch-action: manipulation;
 }
 
 .menu-bar:hover {
@@ -170,10 +177,15 @@ body {
     border: 1px solid #333;
     overflow: hidden;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: border-color 0.2s ease, background 0.2s ease;
+    /* Optimización de rendimiento */
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    contain: layout style paint;
 }
 
-.indicator-card:hover {
+.indicator-card:hover,
+.indicator-card:active {
     border-color: var(--indicator-color);
     background: #222;
 }
@@ -414,6 +426,9 @@ body {
     border-left: 3px solid var(--band-color);
     transition: background 0.2s;
     position: relative;
+    /* Optimización de rendering */
+    will-change: background;
+    contain: layout style;
 }
 
 .band-item-detailed:hover {
@@ -456,12 +471,21 @@ body {
     color: #666;
     font-size: 14px;
     cursor: pointer;
-    transition: all 0.2s;
-    padding: 0;
+    transition: color 0.2s ease, transform 0.2s ease;
+    padding: 4px;
     margin-left: auto;
+    /* Mejora táctil móvil */
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: rgba(76, 175, 80, 0.1);
+    touch-action: manipulation;
 }
 
-.info-btn:hover {
+.info-btn:hover,
+.info-btn:active {
     color: #4CAF50;
     transform: scale(1.15);
 }
@@ -476,10 +500,17 @@ body {
     font-size: 11px;
     color: #aaa;
     line-height: 1.4;
+    /* Optimización de animación */
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    max-height: 0;
+    opacity: 0;
 }
 
 .band-explanation.show {
     display: block;
+    max-height: 200px;
+    opacity: 1;
 }
 
 .recommendation {
@@ -686,18 +717,47 @@ body {
     line-height: 1.4;
 }
 
+/* Optimizaciones específicas para móvil */
 @media (max-width: 480px) {
     .container {
         max-width: 100%;
         padding: 0 5px;
     }
-    
+
     .form-row {
         grid-template-columns: 1fr;
     }
-    
+
     .checkbox-group {
         grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+    }
+
+    /* Reducir animaciones en móvil para mejor rendimiento */
+    .band-item-detailed,
+    .indicator-card {
+        transition: none;
+    }
+
+    /* Optimizar fuentes en móvil */
+    body {
+        font-size: 14px;
+    }
+
+    /* Mejorar área táctil de botones */
+    .info-btn {
+        min-width: 48px;
+        min-height: 48px;
+    }
+}
+
+/* Prefiere movimiento reducido (accesibilidad) */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
     }
 }
 
@@ -840,4 +900,205 @@ body {
     padding: 15px;
     border-left: 3px solid #333;
     background: rgba(255, 255, 255, 0.02);
+}
+
+/* Botón para abrir modal de links */
+.links-button {
+    width: 100%;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+    border: 1px solid #4CAF50;
+    border-radius: 12px;
+    padding: 15px 20px;
+    color: #4CAF50;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 20px 0;
+    transition: all 0.3s ease;
+    -webkit-tap-highlight-color: rgba(76, 175, 80, 0.1);
+    touch-action: manipulation;
+}
+
+.links-button:hover {
+    background: linear-gradient(135deg, #2a2a2a 0%, #333 100%);
+    border-color: #66bb6a;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.2);
+}
+
+.links-button:active {
+    transform: translateY(0);
+}
+
+/* Modal de links */
+.links-modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+
+.links-modal-content {
+    background: #0a0a0a;
+    border: 2px solid #4CAF50;
+    border-radius: 16px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(76, 175, 80, 0.3);
+    animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.links-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: 1px solid #333;
+    background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
+    border-radius: 14px 14px 0 0;
+}
+
+.links-modal-header h2 {
+    margin: 0;
+    font-size: 20px;
+    color: #4CAF50;
+}
+
+.links-modal-close {
+    background: transparent;
+    border: none;
+    color: #999;
+    font-size: 32px;
+    cursor: pointer;
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    border-radius: 50%;
+}
+
+.links-modal-close:hover {
+    color: #f44336;
+    background: rgba(244, 67, 54, 0.1);
+    transform: rotate(90deg);
+}
+
+.links-modal-body {
+    padding: 20px 25px;
+}
+
+.links-section-group {
+    margin-bottom: 25px;
+}
+
+.links-section-group:last-child {
+    margin-bottom: 0;
+}
+
+.links-section-title {
+    font-size: 16px;
+    color: #4CAF50;
+    margin-bottom: 12px;
+    font-weight: 600;
+    border-bottom: 1px solid #333;
+    padding-bottom: 8px;
+}
+
+.links-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.link-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 12px 15px;
+    text-decoration: none;
+    color: #ccc;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: rgba(76, 175, 80, 0.1);
+}
+
+.link-card:hover {
+    background: #252525;
+    border-color: #4CAF50;
+    transform: translateX(4px);
+    color: #4CAF50;
+}
+
+.link-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.link-text {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* Scroll personalizado para el modal */
+.links-modal-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.links-modal-content::-webkit-scrollbar-track {
+    background: #0a0a0a;
+    border-radius: 0 16px 16px 0;
+}
+
+.links-modal-content::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 4px;
+}
+
+.links-modal-content::-webkit-scrollbar-thumb:hover {
+    background: #4CAF50;
+}
+
+/* Responsive para modal */
+@media (max-width: 480px) {
+    .links-modal-content {
+        width: 95%;
+        max-height: 90vh;
+    }
+
+    .links-modal-header {
+        padding: 15px 20px;
+    }
+
+    .links-modal-body {
+        padding: 15px 20px;
+    }
+
+    .links-grid {
+        grid-template-columns: 1fr;
+    }
 }

@@ -5,26 +5,36 @@ require_once 'nav.php';
 $cache_file = 'solar_cache.json';
 $cache_time = 300; // 5 minutos
 
-// Función auxiliar para convertir XML a array
+/**
+ * Convierte XML del API HamQSL a array asociativo PHP
+ * @param SimpleXMLElement $xml Objeto XML del API
+ * @return array Array con datos solares normalizados
+ */
 function xmlToArray($xml) {
-    // Los datos están dentro de <solardata>
+    // Validar que el XML contenga la estructura esperada
+    if (!isset($xml->solardata)) {
+        error_log('RadioTools: XML no contiene nodo solardata');
+        return false;
+    }
+
     $solar = $xml->solardata;
 
+    // Extraer y validar datos básicos
     $data = [
-        'solarflux' => (string)$solar->solarflux,
-        'sunspots' => (string)$solar->sunspots,
-        'kindex' => trim((string)$solar->kindex),
-        'aindex' => trim((string)$solar->aindex),
-        'aurora' => trim((string)$solar->aurora),
-        'updated' => (string)$solar->updated,
-        'xray' => (string)$solar->xray,
-        'solarwind' => (string)$solar->solarwind,
-        'magneticfield' => trim((string)$solar->magneticfield),
-        'geomagfield' => (string)$solar->geomagfield,
-        'signalnoise' => (string)$solar->signalnoise,
-        'heliumline' => (string)$solar->heliumline,
-        'protonflux' => (string)$solar->protonflux,
-        'electonflux' => (string)$solar->electonflux,
+        'solarflux' => isset($solar->solarflux) ? (string)$solar->solarflux : '0',
+        'sunspots' => isset($solar->sunspots) ? (string)$solar->sunspots : '0',
+        'kindex' => isset($solar->kindex) ? trim((string)$solar->kindex) : '0',
+        'aindex' => isset($solar->aindex) ? trim((string)$solar->aindex) : '0',
+        'aurora' => isset($solar->aurora) ? trim((string)$solar->aurora) : 'N/A',
+        'updated' => isset($solar->updated) ? (string)$solar->updated : date('Y-m-d H:i:s'),
+        'xray' => isset($solar->xray) ? (string)$solar->xray : 'A0.0',
+        'solarwind' => isset($solar->solarwind) ? (string)$solar->solarwind : '0',
+        'magneticfield' => isset($solar->magneticfield) ? trim((string)$solar->magneticfield) : '0',
+        'geomagfield' => isset($solar->geomagfield) ? (string)$solar->geomagfield : 'Quiet',
+        'signalnoise' => isset($solar->signalnoise) ? (string)$solar->signalnoise : 'S0',
+        'heliumline' => isset($solar->heliumline) ? (string)$solar->heliumline : '0',
+        'protonflux' => isset($solar->protonflux) ? (string)$solar->protonflux : '0',
+        'electonflux' => isset($solar->electonflux) ? (string)$solar->electonflux : '0',
     ];
 
     // Obtener condiciones de bandas (solo de día/noche según hora)
@@ -60,54 +70,91 @@ function xmlToArray($xml) {
     return $data;
 }
 
-// Función para obtener datos
+/**
+ * Obtiene datos solares desde HamQSL API con sistema de caché
+ * @return array|false Array con datos solares o false si hay error
+ */
 function getSolarData() {
     global $cache_file, $cache_time;
 
-    // Verificar cache
+    // Verificar cache existente
     if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time)) {
-        $cached = file_get_contents($cache_file);
-        $xml = simplexml_load_string($cached);
-        if ($xml) {
-            return xmlToArray($xml);
+        $cached = @file_get_contents($cache_file);
+        if ($cached !== false) {
+            // Suprimir warnings de XML malformado
+            libxml_use_internal_errors(true);
+            $xml = simplexml_load_string($cached);
+            libxml_clear_errors();
+
+            if ($xml !== false) {
+                return xmlToArray($xml);
+            }
         }
     }
 
-    // Obtener nuevos datos
+    // Obtener nuevos datos del API
     $url = "https://www.hamqsl.com/solarxml.php";
+
+    // Verificar si cURL está disponible
+    if (!function_exists('curl_init')) {
+        error_log('RadioTools: cURL no está disponible');
+        return false;
+    }
+
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+
     $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
     curl_close($ch);
 
-    if ($response) {
-        // Guardar XML en cache
-        file_put_contents($cache_file, $response);
-
-        // Convertir XML a array
-        $xml = simplexml_load_string($response);
-        if ($xml) {
-            return xmlToArray($xml);
-        }
+    if ($response === false || $httpCode !== 200) {
+        error_log("RadioTools: Error al obtener datos solares. HTTP: $httpCode, Error: $error");
+        return false;
     }
 
+    // Intentar guardar en cache
+    if (@file_put_contents($cache_file, $response) === false) {
+        error_log('RadioTools: No se pudo escribir archivo de caché');
+    }
+
+    // Convertir XML a array
+    libxml_use_internal_errors(true);
+    $xml = simplexml_load_string($response);
+    libxml_clear_errors();
+
+    if ($xml !== false) {
+        return xmlToArray($xml);
+    }
+
+    error_log('RadioTools: Error al parsear XML del API');
     return false;
 }
 
-// Función para determinar color según condiciones
+/**
+ * Determina color CSS según condición de banda (semáforo)
+ * @param string $value Condición: 'good', 'fair', 'poor'
+ * @return string Código de color hexadecimal
+ */
 function getConditionColor($value) {
     switch(strtolower($value)) {
-        case 'good': return '#4CAF50';
-        case 'fair': return '#FFC107';
-        case 'poor': return '#F44336';
-        default: return '#9E9E9E';
+        case 'good': return '#4CAF50';  // Verde
+        case 'fair': return '#FFC107';  // Amarillo
+        case 'poor': return '#F44336';  // Rojo
+        default: return '#9E9E9E';       // Gris (desconocido)
     }
 }
 
-// Función para traducir condiciones de bandas
+/**
+ * Traduce condiciones de banda del inglés al español
+ * @param string $value Condición en inglés
+ * @return string Condición traducida al español
+ */
 function translateCondition($value) {
     switch(strtolower($value)) {
         case 'good': return 'Buena';
@@ -143,12 +190,20 @@ function getVHFConditionColor($value) {
     }
 }
 
-// Función para analizar bandas con estrellas y explicación
+/**
+ * Analiza condiciones de banda y genera calificación con estrellas y explicación contextual
+ * @param string $bandName Nombre del grupo de bandas ('80m - 40m', etc.)
+ * @param string $condition Condición base del API ('good', 'fair', 'poor')
+ * @param int $sfi Solar Flux Index
+ * @param int $k K-Index (actividad geomagnética 3h)
+ * @param int $a A-Index (actividad geomagnética 24h)
+ * @return array ['stars' => int (1-5), 'explanation' => string]
+ */
 function analyzeBandCondition($bandName, $condition, $sfi, $k, $a) {
     $stars = 0;
     $explanation = '';
 
-    // Determinar estrellas base según condición
+    // Determinar estrellas base según condición del API
     switch(strtolower($condition)) {
         case 'good':
             $stars = 4;
@@ -369,11 +424,10 @@ if (!$error) {
 <body>
     <div class="container">
         <?php renderNavMenu('solar.php'); ?>
-        
+
         <div class="header">
-            <h1>📡 Monitor Solar HF</h1>
             <div class="update-time">
-                <?php 
+                <?php
                 if (!$error && isset($data['updated'])) {
                     echo "Actualizado: " . $data['updated'];
                 } else {
@@ -382,7 +436,7 @@ if (!$error) {
                 ?>
             </div>
         </div>
-        
+
         <?php if ($error): ?>
         <div class="error">
             ⚠️ Error al conectar con el servidor
@@ -415,65 +469,65 @@ if (!$error) {
                     <div class="band-item-detailed" style="--band-color: <?php echo getConditionColor($data['80m-40m']); ?>">
                         <div class="band-header-row">
                             <div class="band-name">80m - 40m</div>
-                            <div class="band-stars">
+                            <div class="band-stars" role="img" aria-label="Calificación: <?php echo $band_80_40['stars']; ?> de 5 estrellas">
                                 <?php for($i = 1; $i <= 5; $i++): ?>
-                                    <span class="star <?php echo $i <= $band_80_40['stars'] ? 'filled' : ''; ?>">⭐</span>
+                                    <span class="star <?php echo $i <= $band_80_40['stars'] ? 'filled' : ''; ?>" aria-hidden="true">⭐</span>
                                 <?php endfor; ?>
                             </div>
                         </div>
                         <div class="band-status-row">
                             <div class="band-status"><?php echo translateCondition($data['80m-40m']); ?></div>
-                            <button class="info-btn" onclick="event.stopPropagation(); toggleExplanation(this);">ℹ️</button>
+                            <button class="info-btn" onclick="event.stopPropagation(); toggleExplanation(this);" aria-label="Mostrar explicación de condiciones para bandas 80m-40m">ℹ️</button>
                         </div>
-                        <div class="band-explanation"><?php echo $band_80_40['explanation']; ?></div>
+                        <div class="band-explanation" role="region" aria-live="polite"><?php echo $band_80_40['explanation']; ?></div>
                     </div>
 
                     <div class="band-item-detailed" style="--band-color: <?php echo getConditionColor($data['30m-20m']); ?>">
                         <div class="band-header-row">
                             <div class="band-name">30m - 20m</div>
-                            <div class="band-stars">
+                            <div class="band-stars" role="img" aria-label="Calificación: <?php echo $band_30_20['stars']; ?> de 5 estrellas">
                                 <?php for($i = 1; $i <= 5; $i++): ?>
-                                    <span class="star <?php echo $i <= $band_30_20['stars'] ? 'filled' : ''; ?>">⭐</span>
+                                    <span class="star <?php echo $i <= $band_30_20['stars'] ? 'filled' : ''; ?>" aria-hidden="true">⭐</span>
                                 <?php endfor; ?>
                             </div>
                         </div>
                         <div class="band-status-row">
                             <div class="band-status"><?php echo translateCondition($data['30m-20m']); ?></div>
-                            <button class="info-btn" onclick="event.stopPropagation(); toggleExplanation(this);">ℹ️</button>
+                            <button class="info-btn" onclick="event.stopPropagation(); toggleExplanation(this);" aria-label="Mostrar explicación de condiciones para bandas 30m-20m">ℹ️</button>
                         </div>
-                        <div class="band-explanation"><?php echo $band_30_20['explanation']; ?></div>
+                        <div class="band-explanation" role="region" aria-live="polite"><?php echo $band_30_20['explanation']; ?></div>
                     </div>
 
                     <div class="band-item-detailed" style="--band-color: <?php echo getConditionColor($data['17m-15m']); ?>">
                         <div class="band-header-row">
                             <div class="band-name">17m - 15m</div>
-                            <div class="band-stars">
+                            <div class="band-stars" role="img" aria-label="Calificación: <?php echo $band_17_15['stars']; ?> de 5 estrellas">
                                 <?php for($i = 1; $i <= 5; $i++): ?>
-                                    <span class="star <?php echo $i <= $band_17_15['stars'] ? 'filled' : ''; ?>">⭐</span>
+                                    <span class="star <?php echo $i <= $band_17_15['stars'] ? 'filled' : ''; ?>" aria-hidden="true">⭐</span>
                                 <?php endfor; ?>
                             </div>
                         </div>
                         <div class="band-status-row">
                             <div class="band-status"><?php echo translateCondition($data['17m-15m']); ?></div>
-                            <button class="info-btn" onclick="event.stopPropagation(); toggleExplanation(this);">ℹ️</button>
+                            <button class="info-btn" onclick="event.stopPropagation(); toggleExplanation(this);" aria-label="Mostrar explicación de condiciones para bandas 17m-15m">ℹ️</button>
                         </div>
-                        <div class="band-explanation"><?php echo $band_17_15['explanation']; ?></div>
+                        <div class="band-explanation" role="region" aria-live="polite"><?php echo $band_17_15['explanation']; ?></div>
                     </div>
 
                     <div class="band-item-detailed" style="--band-color: <?php echo getConditionColor($data['12m-10m']); ?>">
                         <div class="band-header-row">
                             <div class="band-name">12m - 10m</div>
-                            <div class="band-stars">
+                            <div class="band-stars" role="img" aria-label="Calificación: <?php echo $band_12_10['stars']; ?> de 5 estrellas">
                                 <?php for($i = 1; $i <= 5; $i++): ?>
-                                    <span class="star <?php echo $i <= $band_12_10['stars'] ? 'filled' : ''; ?>">⭐</span>
+                                    <span class="star <?php echo $i <= $band_12_10['stars'] ? 'filled' : ''; ?>" aria-hidden="true">⭐</span>
                                 <?php endfor; ?>
                             </div>
                         </div>
                         <div class="band-status-row">
                             <div class="band-status"><?php echo translateCondition($data['12m-10m']); ?></div>
-                            <button class="info-btn" onclick="event.stopPropagation(); toggleExplanation(this);">ℹ️</button>
+                            <button class="info-btn" onclick="event.stopPropagation(); toggleExplanation(this);" aria-label="Mostrar explicación de condiciones para bandas 12m-10m">ℹ️</button>
                         </div>
-                        <div class="band-explanation"><?php echo $band_12_10['explanation']; ?></div>
+                        <div class="band-explanation" role="region" aria-live="polite"><?php echo $band_12_10['explanation']; ?></div>
                     </div>
                 </div>
             </div>
