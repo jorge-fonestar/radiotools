@@ -1,0 +1,15 @@
+# Permitir solo archivos de audio WAV y imágenes temporales
+<Files *.wav>
+    Allow from all
+</Files>
+<FilesMatch "\.(jpg|jpeg|png|gif)$">
+    Allow from all
+</FilesMatch>
+
+# Denegar ejecución de scripts
+<FilesMatch "\.(php|php3|php4|php5|phtml|pl|py|jsp|asp|sh|cgi)$">
+    Deny from all
+</FilesMatch>
+
+# Prevenir listado de directorios
+Options -Indexes

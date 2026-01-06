@@ -370,8 +370,9 @@ require_once 'nav.php';
             </div>
         </div>
 
-        <!-- Enlace de exportación -->
-        <div class="qso-section" style="text-align: center; margin-top: 20px;">
+        <!-- Enlaces de gestión -->
+        <div class="qso-section" style="text-align: center; margin-top: 20px; display: flex; justify-content: center; gap: 20px;">
+            <a href="#" class="export-link" onclick="clearQSOData(); return false;">🗑️ Borrar datos del QSO</a>
             <a href="#" class="export-link" onclick="exportQSOData(); return false;">💾 Exportar datos a archivo</a>
         </div>
     </div>
@@ -381,7 +382,7 @@ require_once 'nav.php';
         <div class="modal-content">
             <div class="modal-title">➕ Añadir Indicativo</div>
             <div class="add-form">
-                <input type="text" id="addCallsignInput" class="input-field" placeholder="Indicativo (ej: EA4XYZ)" maxlength="15">
+                <input type="text" id="addCallsignInput" class="input-field" placeholder="Indicativo (ej: EA4XYZ)" maxlength="15" style="text-transform: uppercase;">
                 <input type="text" id="addNameInput" class="input-field" placeholder="Nombre (opcional)" maxlength="50">
             </div>
             <div class="modal-buttons">
@@ -396,7 +397,7 @@ require_once 'nav.php';
         <div class="modal-content">
             <div class="modal-title">✏️ Editar Indicativo</div>
             <div class="add-form">
-                <input type="text" id="editCallsignInput" class="input-field" placeholder="Indicativo">
+                <input type="text" id="editCallsignInput" class="input-field" placeholder="Indicativo" style="text-transform: uppercase;">
                 <input type="text" id="editNameInput" class="input-field" placeholder="Nombre">
             </div>
             <div class="modal-buttons">
@@ -676,6 +677,36 @@ require_once 'nav.php';
                 closeEditModal();
             }
         });
+
+        // ========== BORRAR DATOS ==========
+        function clearQSOData() {
+            if (!confirm('¿Estás seguro de que quieres borrar todos los datos del QSO actual?\n\nEsto incluye:\n- Cronómetro\n- Notas\n- Lista de indicativos\n\nEsta acción no se puede deshacer.')) {
+                return;
+            }
+
+            // Reiniciar cronómetro
+            if (isRunning) {
+                clearInterval(timerInterval);
+                isRunning = false;
+                const btn = document.getElementById('timerBtn');
+                btn.textContent = '▶️ Iniciar';
+                btn.classList.remove('running');
+            }
+            timerSeconds = 0;
+            updateTimerDisplay();
+            saveTimerState();
+
+            // Limpiar notas
+            document.getElementById('qsoNotes').value = '';
+            localStorage.setItem('qsoNotes', '');
+
+            // Limpiar indicativos
+            callsigns = [];
+            saveCallsigns();
+            renderCallsigns();
+
+            alert('✅ Datos del QSO borrados correctamente');
+        }
 
         // ========== EXPORTACIÓN ==========
         function exportQSOData() {

@@ -10,18 +10,19 @@ $links_config = [
         ]
     ],
     [
-        'title' => '📍 Mapas y Ubicación',
+        'title' => '🗺️ Mapas y Ubicación',
         'links' => [
-            ['icon' => '🗺️', 'text' => 'Mapa Topográfico', 'url' => 'https://es-es.topographic-map.com/map-3fzz4/Cantabria/?center=43.38259%2C-3.87405&zoom=11', 'desc' => 'Topografía de Cantabria'],
+            ['icon' => '🏔️', 'text' => 'Mapa Topográfico', 'url' => 'https://es-es.topographic-map.com/map-3fzz4/Cantabria/?center=43.38259%2C-3.87405&zoom=11', 'desc' => 'Topografía de Cantabria'],
+            ['icon' => '📍', 'text' => 'SOTL.as', 'url' => 'https://sotl.as/mapa/', 'desc' => 'Mapa de estaciones de radioaficionados'],
         ]
     ],
     [
         'title' => '📻 SDR y Frecuencias',
         'links' => [
-            ['icon' => '📻', 'text' => 'Frecuencias en España', 'url' => 'https://sdrmadrid.com/sdr-frecuencias-en-espana-una-guia-completa-para-radioescuchas-y-radioaficionados/', 'desc' => 'Guía completa de frecuencias'],
-            ['icon' => '📡', 'text' => 'RTL-SDR.com', 'url' => 'https://www.rtl-sdr.com/', 'desc' => 'Recursos SDR'],
-            ['icon' => '📻', 'text' => 'SDR Madrid', 'url' => 'http://rem-esp.spdns.org:8901/', 'desc' => 'Receptor SDR online'],
+            ['icon' => '📡', 'text' => 'websdr.org', 'url' => 'https://websdr.org/', 'desc' => 'Software para receptores SDR'],
+            ['icon' => '📡', 'text' => 'SDR Madrid', 'url' => 'http://rem-esp.spdns.org:8901/', 'desc' => 'Receptor SDR online'],
             ['icon' => '📡', 'text' => 'SDR Cercedilla', 'url' => 'http://laradiocb.ddns.me:8073/#freq=7180500,mod=lsb,sql=-150', 'desc' => 'Receptor SDR online'],
+            ['icon' => '📻', 'text' => 'Frecuencias en España', 'url' => 'https://sdrmadrid.com/sdr-frecuencias-en-espana-una-guia-completa-para-radioescuchas-y-radioaficionados/', 'desc' => 'Guía completa de frecuencias'],
         ]
     ],
     [

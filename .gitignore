@@ -1,0 +1,16 @@
+# Cache files
+solar_cache.json
+
+# Upload directory
+uploads/*.wav
+uploads/*.jpg
+uploads/*.jpeg
+uploads/*.png
+uploads/*.gif
+
+# Keep directory structure
+!uploads/.htaccess
+
+# System files
+.DS_Store
+Thumbs.db
