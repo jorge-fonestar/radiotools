@@ -26,10 +26,11 @@ $links_config = [
         ]
     ],
     [
-        'title' => '🛰️ Satélites',
+        'title' => '🛰️ Satélites y Sondas',
         'links' => [
             ['icon' => '🛰️', 'text' => 'Satélites Ham', 'url' => 'https://heavens-above.com/AmateurSats.aspx?lat=43.4165&lng=-3.8468&loc=Unnamed&alt=0&tz=CET', 'desc' => 'Satélites de radioaficionados'],
             ['icon' => '🚀', 'text' => 'ISS Tracker', 'url' => 'http://www.isstracker.com/', 'desc' => 'Seguimiento de la ISS en tiempo real'],
+            ['icon' => '🎈', 'text' => 'SondeHub', 'url' => 'https://sondehub.org', 'desc' => 'Rastreo de radiosondas meteorológicas - ¡Geocaching radiofónico!'],
         ]
     ],
     [

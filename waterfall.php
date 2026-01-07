@@ -6,12 +6,14 @@ require_once 'nav.php';
  * Implementación PHP equivalente al script Python usando scipy/opencv
  */
 class WaterfallProcessor {
-    private $sampleRate;
+    private $waterfallDuration; // Duración real del waterfall en segundos
     private $filterCutoff;
+    private $outputSampleRate; // Sample rate de salida del WAV
 
-    public function __construct($sampleRate = 8000, $filterCutoff = 0.2) {
-        $this->sampleRate = $sampleRate;
+    public function __construct($waterfallDuration = 5.0, $filterCutoff = 0.2, $outputSampleRate = 8000) {
+        $this->waterfallDuration = $waterfallDuration;
         $this->filterCutoff = $filterCutoff;
+        $this->outputSampleRate = $outputSampleRate;
     }
 
     /**
@@ -61,10 +63,16 @@ class WaterfallProcessor {
         // 6. Procesamiento DSP
         $audioWave = $this->processDSP($demodulated);
 
-        // 7. Normalizar a 16-bit PCM
-        $audioInt16 = $this->normalizeToInt16($audioWave);
+        // 7. Resamplear para que coincida con la duración real del waterfall
+        // La imagen tiene $height píxeles que representan $waterfallDuration segundos
+        // Necesitamos generar outputSampleRate * waterfallDuration muestras
+        $targetSamples = (int)($this->outputSampleRate * $this->waterfallDuration);
+        $resampled = $this->resampleAudio($audioWave, $targetSamples);
 
-        // 8. Generar archivo WAV
+        // 8. Normalizar a 16-bit PCM
+        $audioInt16 = $this->normalizeToInt16($resampled);
+
+        // 9. Generar archivo WAV
         $wavPath = 'uploads/waterfall_' . time() . '.wav';
         $this->generateWAV($wavPath, $audioInt16);
 
@@ -72,9 +80,12 @@ class WaterfallProcessor {
             'success' => true,
             'message' => 'Audio generado exitosamente',
             'wavPath' => $wavPath,
-            'duration' => round(count($audioInt16) / $this->sampleRate, 2),
+            'duration' => round(count($audioInt16) / $this->outputSampleRate, 2),
             'samples' => count($audioInt16),
-            'sampleRate' => $this->sampleRate
+            'sampleRate' => $this->outputSampleRate,
+            'imageHeight' => $height,
+            'waterfallDuration' => $this->waterfallDuration,
+            'resampleRatio' => round($targetSamples / count($audioWave), 2)
         ];
     }
 
@@ -237,6 +248,37 @@ class WaterfallProcessor {
     }
 
     /**
+     * Resampling usando interpolación lineal
+     * Cambia el número de muestras de la señal de audio
+     * @param array $signal Señal original
+     * @param int $targetSamples Número de muestras deseadas
+     * @return array Señal resampleada
+     */
+    private function resampleAudio($signal, $targetSamples) {
+        $sourceSamples = count($signal);
+
+        if ($sourceSamples == $targetSamples) {
+            return $signal;
+        }
+
+        $resampled = [];
+        $ratio = ($sourceSamples - 1) / ($targetSamples - 1);
+
+        for ($i = 0; $i < $targetSamples; $i++) {
+            $sourceIndex = $i * $ratio;
+            $indexFloor = (int)floor($sourceIndex);
+            $indexCeil = min($indexFloor + 1, $sourceSamples - 1);
+            $fraction = $sourceIndex - $indexFloor;
+
+            // Interpolación lineal
+            $resampled[] = $signal[$indexFloor] * (1 - $fraction) +
+                          $signal[$indexCeil] * $fraction;
+        }
+
+        return $resampled;
+    }
+
+    /**
      * Normaliza señal de audio a formato 16-bit PCM
      */
     private function normalizeToInt16($signal) {
@@ -271,7 +313,7 @@ class WaterfallProcessor {
         $numSamples = count($audioData);
         $numChannels = 1; // Mono
         $bitsPerSample = 16;
-        $byteRate = $this->sampleRate * $numChannels * ($bitsPerSample / 8);
+        $byteRate = $this->outputSampleRate * $numChannels * ($bitsPerSample / 8);
         $blockAlign = $numChannels * ($bitsPerSample / 8);
         $dataSize = $numSamples * $blockAlign;
 
@@ -293,7 +335,7 @@ class WaterfallProcessor {
         fwrite($fp, pack('V', 16)); // Subchunk1Size (16 for PCM)
         fwrite($fp, pack('v', 1)); // AudioFormat (1 = PCM)
         fwrite($fp, pack('v', $numChannels));
-        fwrite($fp, pack('V', $this->sampleRate));
+        fwrite($fp, pack('V', $this->outputSampleRate));
         fwrite($fp, pack('V', $byteRate));
         fwrite($fp, pack('v', $blockAlign));
         fwrite($fp, pack('v', $bitsPerSample));
@@ -323,15 +365,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['waterfall_image'])) 
     $tempPath = $uploadedFile['tmp_name'];
 
     // Obtener parámetros
-    $sampleRate = isset($_POST['sample_rate']) ? (int)$_POST['sample_rate'] : 8000;
+    $waterfallDuration = isset($_POST['waterfall_duration']) ? (float)$_POST['waterfall_duration'] : 5.0;
     $filterCutoff = isset($_POST['filter_cutoff']) ? (float)$_POST['filter_cutoff'] : 0.2;
+    $outputSampleRate = isset($_POST['output_sample_rate']) ? (int)$_POST['output_sample_rate'] : 8000;
 
     // Validar parámetros
-    $sampleRate = max(1000, min(48000, $sampleRate));
+    $waterfallDuration = max(0.1, min(300, $waterfallDuration)); // 0.1s a 5 minutos
     $filterCutoff = max(0.01, min(0.49, $filterCutoff));
+    $outputSampleRate = max(1000, min(48000, $outputSampleRate));
 
     // Procesar
-    $processor = new WaterfallProcessor($sampleRate, $filterCutoff);
+    $processor = new WaterfallProcessor($waterfallDuration, $filterCutoff, $outputSampleRate);
     $result = $processor->processWaterfall($tempPath);
 }
 ?>
@@ -587,14 +631,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['waterfall_image'])) 
                 <h3>⚙️ Parámetros de procesamiento</h3>
 
                 <div class="param-item">
-                    <label for="sample-rate">
-                        Frecuencia de muestreo: <span class="param-value" id="sample-rate-value">8000</span> Hz
+                    <label for="waterfall-duration">
+                        ⏱️ Duración del waterfall: <span class="param-value" id="duration-value">5.0</span> segundos
                     </label>
-                    <input type="range" id="sample-rate" name="sample_rate"
-                           min="1000" max="48000" step="1000" value="8000">
+                    <input type="range" id="waterfall-duration" name="waterfall_duration"
+                           min="0.5" max="60" step="0.5" value="5.0">
                     <p class="help-text">
-                        Controla la duración del audio. Valores bajos = audio más largo.
-                        Recomendado: 4000-8000 Hz para waterfall típico.
+                        <strong>IMPORTANTE:</strong> Tiempo real que representa la imagen del waterfall.
+                        Por ejemplo, si capturaste 5 segundos de señal, usa 5.0 segundos.
+                        Este parámetro es crítico para la correcta velocidad del audio.
+                    </p>
+                </div>
+
+                <div class="param-item">
+                    <label for="output-sample-rate">
+                        Calidad de audio: <span class="param-value" id="sample-rate-value">8000</span> Hz
+                    </label>
+                    <input type="range" id="output-sample-rate" name="output_sample_rate"
+                           min="4000" max="48000" step="1000" value="8000">
+                    <p class="help-text">
+                        Sample rate del archivo WAV generado. Mayor = mejor calidad pero archivo más grande.
+                        Recomendado: 8000 Hz (voz), 16000 Hz (datos), 44100 Hz (alta calidad).
                     </p>
                 </div>
 
@@ -624,16 +681,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['waterfall_image'])) 
                 <div class="info-box">
                     <h4>Información del archivo</h4>
                     <div class="info-item">
-                        <span class="info-label">Duración:</span>
+                        <span class="info-label">Duración waterfall:</span>
+                        <span class="info-value"><?php echo $result['waterfallDuration']; ?> segundos</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Duración audio:</span>
                         <span class="info-value"><?php echo $result['duration']; ?> segundos</span>
                     </div>
                     <div class="info-item">
-                        <span class="info-label">Muestras:</span>
+                        <span class="info-label">Altura imagen:</span>
+                        <span class="info-value"><?php echo $result['imageHeight']; ?> píxeles</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Muestras generadas:</span>
                         <span class="info-value"><?php echo number_format($result['samples']); ?></span>
                     </div>
                     <div class="info-item">
-                        <span class="info-label">Frecuencia:</span>
+                        <span class="info-label">Sample rate:</span>
                         <span class="info-value"><?php echo $result['sampleRate']; ?> Hz</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Ratio resample:</span>
+                        <span class="info-value"><?php echo $result['resampleRatio']; ?>x</span>
                     </div>
                 </div>
 
@@ -657,6 +726,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['waterfall_image'])) 
             <ol style="color: #ccc; line-height: 1.8;">
                 <li><strong>Carga de imagen:</strong> Se analiza cada píxel del waterfall en escala de grises.</li>
                 <li><strong>Demodulación por centro de masa:</strong> Para cada línea horizontal, se calcula el centro de energía (más preciso que solo el pico).</li>
+                <li><strong>Resampling temporal:</strong> La señal se reescala para que coincida con la duración real del waterfall que capturaste.</li>
                 <li><strong>Filtrado DSP:</strong> Se elimina la portadora DC y se aplica un filtro Butterworth paso-bajo para eliminar ruido de pixelación.</li>
                 <li><strong>Normalización:</strong> Se convierte a formato PCM 16-bit estándar.</li>
                 <li><strong>Generación WAV:</strong> Se crea un archivo de audio compatible con cualquier reproductor.</li>
@@ -664,11 +734,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['waterfall_image'])) 
 
             <h4 style="margin-top: 20px;">💡 Consejos</h4>
             <ul style="color: #ccc; line-height: 1.8;">
+                <li><strong>Duración del waterfall:</strong> Verifica cuántos segundos abarca tu captura en el SDR. Este es el parámetro MÁS IMPORTANTE para obtener la velocidad correcta del audio.</li>
                 <li>Usa capturas limpias del waterfall con buena relación señal/ruido</li>
-                <li>Para señales lentas (SSTV, RTTY), reduce la frecuencia de muestreo a 4000-6000 Hz</li>
-                <li>Para señales rápidas (PSK, datos), aumenta a 12000-16000 Hz</li>
-                <li>Si el audio tiene "clics", reduce la frecuencia de corte del filtro</li>
-                <li>Experimenta con los parámetros hasta obtener el mejor resultado</li>
+                <li>Para señales de voz (SSB, AM): usa 8000 Hz de sample rate</li>
+                <li>Para modos digitales (PSK, RTTY, FT8): usa 8000-16000 Hz</li>
+                <li>Para alta fidelidad o análisis: usa 44100 Hz</li>
+                <li>Si el audio tiene "clics" o ruido de pixelación, reduce la frecuencia de corte del filtro (0.10-0.15)</li>
+                <li>Si necesitas más detalle en señales rápidas, aumenta la frecuencia de corte del filtro (0.30-0.40)</li>
+                <li>La duración del audio generado SIEMPRE será igual a la duración del waterfall que especificaste</li>
             </ul>
         </div>
     </div>
@@ -680,12 +753,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['waterfall_image'])) 
         const previewImg = document.getElementById('preview-img');
         const processBtn = document.getElementById('process-btn');
         const filenameDisplay = document.getElementById('filename-display');
-        const sampleRateSlider = document.getElementById('sample-rate');
+        const durationSlider = document.getElementById('waterfall-duration');
+        const durationValue = document.getElementById('duration-value');
+        const sampleRateSlider = document.getElementById('output-sample-rate');
         const sampleRateValue = document.getElementById('sample-rate-value');
         const filterSlider = document.getElementById('filter-cutoff');
         const filterValue = document.getElementById('filter-value');
 
         // Actualizar valores de sliders
+        durationSlider.addEventListener('input', function() {
+            durationValue.textContent = parseFloat(this.value).toFixed(1);
+        });
+
         sampleRateSlider.addEventListener('input', function() {
             sampleRateValue.textContent = this.value;
         });
