@@ -5,6 +5,7 @@ function renderNavMenu($currentPage) {
     $pages = [
         'index.php' => ['🏠 Inicio', 'Página principal del sistema'],
         'solar.php' => ['📡 Monitor Solar', 'Condiciones solares en tiempo real'],
+        'iniciacion.php' => ['🎙️ Iniciación', 'Guía para empezar en radioafición'],
         'qso.php' => ['📝 Gestor QSO', 'Gestor de contactos y notas de QSO'],
         'links.php' => ['🔗 Enlaces de Interés', 'Recursos y enlaces útiles'],
         'propagacion.php' => ['📻 Calculador Propagación', 'Predicción de propagación HF'],
