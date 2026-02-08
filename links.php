@@ -20,9 +20,18 @@ $links_config = [
         'title' => '📻 SDR y Frecuencias',
         'links' => [
             ['icon' => '📡', 'text' => 'websdr.org', 'url' => 'https://websdr.org/', 'desc' => 'Software para receptores SDR'],
+            ['icon' => '📡', 'text' => 'Kiwi SDR', 'url' => 'http://rx.linkfanel.net/', 'desc' => 'Kiwi'],
             ['icon' => '📡', 'text' => 'SDR Madrid', 'url' => 'http://rem-esp.spdns.org:8901/', 'desc' => 'Receptor SDR online'],
             ['icon' => '📡', 'text' => 'SDR Cercedilla', 'url' => 'http://laradiocb.ddns.me:8073/#freq=7180500,mod=lsb,sql=-150', 'desc' => 'Receptor SDR online'],
             ['icon' => '📻', 'text' => 'Frecuencias en España', 'url' => 'https://sdrmadrid.com/sdr-frecuencias-en-espana-una-guia-completa-para-radioescuchas-y-radioaficionados/', 'desc' => 'Guía completa de frecuencias'],
+        ]
+    ],
+    [
+        'title' => '☀️ Propagación y Clima Espacial',
+        'links' => [
+            ['icon' => '🗺️', 'text' => 'DX Maps', 'url' => 'https://www.dxmaps.com', 'desc' => 'Mapas en tiempo real de QSOs, SWLs, propagación y búsqueda de entidades DXCC'],
+            ['icon' => '📊', 'text' => 'PSK Reporter', 'url' => 'https://www.pskreporter.info/pskmap.html', 'desc' => 'Digimode Automatic Propagation Reporter - mapa de propagación en modos digitales'],
+            ['icon' => '☀️', 'text' => 'SolarHam', 'url' => 'https://solarham.com', 'desc' => 'Noticias y datos de clima espacial en tiempo real desde 2006'],
         ]
     ],
     [
