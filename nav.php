@@ -11,6 +11,7 @@ function renderNavMenu($currentPage) {
         'propagacion.php' => ['📻 Calculador Propagación', 'Predicción de propagación HF'],
         'espectro-visual.php' => ['🌈 Espectro Radioeléctrico', 'Visualizador de espectro radioeléctrico'],
         'waterfall.php' => ['🌊 Decodificador Waterfall', 'Convierte imágenes de waterfall SDR a audio'],
+        'radiosondas.php' => ['🎈 Panel Radiosondas', 'Búsqueda de radiosondas vía SondeHub'],
     ];
 
     $external_links = [
